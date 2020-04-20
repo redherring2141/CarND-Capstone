@@ -31,6 +31,8 @@ that we have created in the `__init__` function.
 
 '''
 
+RATE_SAMPLING = 50 #50Hz
+
 class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
@@ -55,10 +57,51 @@ class DBWNode(object):
 
         # TODO: Create `Controller` object
         # self.controller = Controller(<Arguments you wish to provide>)
+        self.controller = Controller(
+                                        accel_limit = accel_limit,
+                                        brake_deadband = brake_deadband,
+                                        decel_limit = decel_limit,
+                                        fuel_capacity = fuel_capacity,
+                                        max_lat_accel = max_lat_accel,
+                                        max_steer_angle = max_steer_angle,
+
+                                        max_speed = max_speed,
+                                        min_speed = min_speed,
+
+                                        sample_rate = RATE_SAMPLING,
+                                        steer_ratio = steer_ratio,
+                                        steering_tau = sterring_tau,
+                                        throttle_gains = throttle_gains,
+                                        vehicle_mass = vehicle_mass,
+                                        wheel_base = wheel_base,
+                                        wheel_radius = wheel_radius
+                                    )
 
         # TODO: Subscribe to all the topics you need to
-
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb, queue_size=1)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.curr_vel_cb, queue_size=1)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb, queue_size=1)
+        
         self.loop()
+
+
+    def dbw_enabled_cb(self, msg):
+        self.dbw_enabled = msg.data
+        rospy.logwarn("dbw_enabled_cb: %s", self.dbw_enabled)
+        if self.dbw_enabled == True:
+            self.controller.reset()
+
+
+    def curr_vel_cb(self,msg):
+        self.current_velocity = msg.twist
+        rospy.logwarn("twist_velocity_cb: %s", self.current_velocity)
+
+    
+    def twist_cmd_cb(self, msg):
+        self.twist_cmd = msg.twist
+        rospy.logwarn("twist_cmd_cb: %s", self.twist_cmd)
+
+
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
@@ -72,6 +115,11 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
+            rate = rospy.Rate(RATE_SAMPLING)
+            while not rospy.is_shutdown():
+                if self.dbw_enabled == True:
+                    throttle, brake, steer = self.controller.control(self.twist_cmd, self.current_velocity)
+                    self.publish(throttle, brake, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
