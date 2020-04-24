@@ -6,9 +6,43 @@ ONE_MPH = 0.44704
 class Controller(object):
     def __init__(self, *args, **kwargs):
         # TODO: Implement
-        pass
+        self.yaw_control = YawController(#Steering control - low pass filter
+                                            kwargs['wheel_base'],
+                                            kwargs['steer_ratio'],
+                                            kwargs['min_speed'],
+                                            kwargs['max_lat_accel'],
+                                            kwargs['max_steer_angle'],
+                                        )
+        self.lpf = LowPassFilter(kwargs['steering_tau'], 1.0/kwargs['sample_rate'])
+
+        pid_gains = kwargs['throttle_gains']
+        self.pid = PId(pid_gains[0], pid_gains[1], pid_gains[2], kwargs['max_speed'])
+
+        total_mass = kwargs['vehicle_mass'] + kwargs['fuel_capacity']*GAS_DENSITY
+        self.max_brake_torque = total_mass * kwargs['decel_limit'] * kwargs['wheel_radius']
+        self.min_brake = -1.0 * kwargs['brake_deadband']
+        #pass
+
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        return 1., 0., 0.
+        u = self.pid.step(target.linear.x, current.linear.x, rospy.get_time())
+
+        if u > 0:
+            # Acceleration control
+            throttle = max(0.0, min(1.0, u))
+            brake = 0.0
+        else:
+            # Deceleration control
+            throttle = 0.0
+            brake = self.max_brake_torque * min(self.min_brake, u/self.pid.max_abs_u)
+
+        # Steering control
+        steering = self.plt.filt(self.yaw_control.get_steering(target.linear.x, target.angular.z, current.linear.x))
+                
+        #return 1., 0., 0.
+        return throttle, brake, steering
+
+    def reset(self, *args, **kwargs):
+        self.pid.reset()

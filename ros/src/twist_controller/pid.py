@@ -13,15 +13,28 @@ class PID(object):
 
         self.int_val = self.last_error = 0.
 
+        # Approximation - added
+        self.max_abs_u = (abs(self.kp) + abs(self.ki) + abs(self.kd)) * abs(max_input)
+
+        # Controller state initialization
+        self.t = None
+        self.error = 0.0
+        self.integral = 0.0
+
+
     def reset(self):
         self.int_val = 0.0
 
+
     def step(self, error, sample_time):
+        
+        if self.t == None:
+            self.t = t
 
-        integral = self.int_val + error * sample_time;
-        derivative = (error - self.last_error) / sample_time;
+        integral = self.int_val + error * sample_time
+        derivative = (error - self.last_error) / sample_time
 
-        val = self.kp * error + self.ki * integral + self.kd * derivative;
+        val = self.kp * error + self.ki * integral + self.kd * derivative
 
         if val > self.max:
             val = self.max
