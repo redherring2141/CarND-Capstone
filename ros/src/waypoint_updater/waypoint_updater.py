@@ -58,9 +58,7 @@ class WaypointUpdater(object):
         # TODO: Implement
         self.pose_stamped = msg
 
-        if (self.wpts_stamped == None)
-        or (self.wpt_redlight == None)
-        or (self.speed_curr == None):
+        if (self.wpts_stamped == None) or (self.wpt_redlight == None) or (self.speed_curr == None):
             return # Do nothing unless all msgs received
 
         # Find the nearest waypoint to the current position
@@ -69,8 +67,7 @@ class WaypointUpdater(object):
         # The next waypoint must be ahed of the current position
         transformed_wpt = self.transform_to_car_frame(self.wpts_stamped.wpts[next_wpt].pose)
 
-        if (transformed_wpt != None)
-        and (transformed_wpt.pose.position.x <= 0.0):
+        if (transformed_wpt != None) and (transformed_wpt.pose.position.x <= 0.0):
             next_wpt += 1
 
         num_wayponts = len(self.wpts_stamped.wpts)
@@ -167,7 +164,7 @@ class WaypointUpdater(object):
 
     
     def get_trajectory_speed_at_waypoint(self, wpt):# Get the expected speed at a waypoint
-
+        return self.trajectory_target_speed
 
 
     def get_waypoint_velocity(self, wpt):

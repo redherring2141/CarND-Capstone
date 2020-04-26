@@ -11,17 +11,76 @@ import tf
 import cv2
 import yaml
 
+import math
+import sys
+import numpy as np
+from keras.models import load_model, model_from_json
+from keras.utils.generic_utils import get_custom_objects
+from keras import backend
+
 STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
 
-        self.pose = None
-        self.waypoints = None
-        self.camera_image = None
-        self.lights = []
+        #self.pose = None
+        #self.waypoints = None
+        #self.camera_image = None
+        #self.lights = []
 
+        self.pose_stamped = None
+        self.waypoints_stamped = None
+        self.caemra_image = None
+        self.lights = None
+        self.has_image = False
+        self.light_classifier = TLClassifier()
+        self.tf_listener = tf.TransformListener()
+        self.prev_light_loc = None
+
+        self.state = TrafficLight.UNKNOWN
+        self.last_state = TrafficLight.UNKNOWN
+        self.last_wp = -1
+        self.state_count = 0
+
+        self.lights_wp = []
+        self.stoplines_wp = []
+
+        self.camera_callback_count = 0
+
+        self.simulated_detection = rospy.get_param('~simulated_detection', 1)
+        self.tl_detection_interval_frames = rospy.get_param('~tl_detection_interval_frames', 10)
+
+        config_string = rospy.get_param("/traffice_light_config")
+        self.config = yaml.load(config_string)
+
+        # Setup classifier
+        rospy.loginfo("[TL_DETECTOR Loading TLClassifier model")
+        self.light_classifier = TLClassifier()
+        model = load_model(self.config['tl']['tl_classification_model'])
+        resize_width = self.config['tl']['classifier_resize_width']
+        resize_height = self.config['tl']['classifier_resize_height']
+
+        self.light_classifier.setup_classifier(model, resize_width, resize_height)
+        self.invlaid_class_number = 3
+
+        # Setup detector
+        rospy.loginfo("[TL_DETECTOR] Loading TLDetector model")
+        custom_objects = {'dice_coef_loss': dice_coef_loss, 'dice_coef': dice_coef}
+        
+        self.detector_model = load_model(self.config['tl']['tl_detection_model'], custom_objects = custom_objects)
+        self.detector_model._make_predict_function()
+        self.resize_width = self.config['tl']['detector_resize_width']
+        self.resize_height = self.config['tl']['detector_resize_height']
+        self.resize_height_ratio = self.config['camera_info']['image_height'] / float(self.resize_height)
+        self.resize_width_ratio = self.config['camera_info']['image_width'] / float(self.resize_width)
+        self.middle_col = self.resize_width / 2
+        self.is_carla = self.config['tl']['is_carla']
+        self.projection_threshold = self.config['tl']['projection_threshold']
+        self.projection_min = self.config['tl']['projection_min']
+        self.color_mode = self.config['tl']['color_mode']
+
+        
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -41,6 +100,8 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
+
+        '''
         self.light_classifier = TLClassifier()
         self.listener = tf.TransformListener()
 
@@ -48,17 +109,31 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        '''
 
         rospy.spin()
+
 
     def pose_cb(self, msg):
         self.pose = msg
 
+
     def waypoints_cb(self, waypoints):
-        self.waypoints = waypoints
+        #self.waypoints = waypoints
+        if self.waypoints_stamped is not None:
+            return
+        
+        self.waypoints_stamped = msg
+
+        for i in range(len(self.waypoints_stamped.waypoints)):
+            self.waypoints_stamped.waypoints[i].pose.header.frame_id = self.waypoints_stamped.header.frame_id
+
+        self.calculate_traffic_light_waypoints()
+    
 
     def traffic_cb(self, msg):
-        self.lights = msg.lights
+        #self.lights = msg.lights
+        
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
