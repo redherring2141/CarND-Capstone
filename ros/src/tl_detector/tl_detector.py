@@ -133,7 +133,19 @@ class TLDetector(object):
 
     def traffic_cb(self, msg):
         #self.lights = msg.lights
-        
+        if self.simulated_detection > 0:
+            self.lights = msg.lights
+            self.calculate_traffic_light_waypoints()
+
+            light_wp, state = self.process_traffic_lights()
+            self.publish_upcoming_red_light(light_wp, state)
+        else:
+            if self.lights is not None:
+                return
+            
+            self.lights = msg.lights
+            self.calculate_traffic_light_waypoints()
+            
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -143,6 +155,15 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
+        self.camera_callback_count += 1
+
+        if self.camera_callback_count < self.tl_detection_interval_frames:
+            return
+
+        self.camera_callback_count = 0
+
+
+        # Original code
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
@@ -152,6 +173,7 @@ class TLDetector(object):
         Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
         of times till we start using it. Otherwise the previous stable state is
         used.
+        '''
         '''
         if self.state != state:
             self.state_count = 0
@@ -164,6 +186,27 @@ class TLDetector(object):
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
+        #Original code
+        '''
+
+        ###Added
+        self.publish_upcoming_red_light(light_wp, state)
+
+
+    def publish_upcoming_red_light(self, light_wp, state):
+        if self.state != state:
+            self.state_count = 0
+            self.state = state
+            
+        elif self.state_count >= STATE_COUNT_THRESHOLD:
+            self.last_state = self.state
+            light_wp = light_wp if state == TrafficLight.RED else -1
+            self.last_wp = light_wp
+            self.upcoming_red_light_pub.publish(Int32(light_wp))
+        else:
+            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+        self.state_count += 1
+
 
     def get_closest_waypoint(self, pose):
         """Identifies the closest path waypoint to the given position
