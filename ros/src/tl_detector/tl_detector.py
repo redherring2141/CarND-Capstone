@@ -189,24 +189,6 @@ class TLDetector(object):
         #Original code
         '''
 
-        ###Added
-        self.publish_upcoming_red_light(light_wp, state)
-
-
-    def publish_upcoming_red_light(self, light_wp, state):
-        if self.state != state:
-            self.state_count = 0
-            self.state = state
-            
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
-            self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
-            self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
-        else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-        self.state_count += 1
-
 
     def get_closest_waypoint(self, pose):
         """Identifies the closest path waypoint to the given position
@@ -219,7 +201,23 @@ class TLDetector(object):
 
         """
         #TODO implement
-        return 0
+        #return 0
+
+        if self.waypoints_stamped is None:
+            return None
+        
+        dist_min = sys.maxsize
+        wp_min = None
+
+        for wp in range(len(self.waypoints_stamped.waypoints)):
+            dist = self.distance2(pose, self.waypoints_stamped.waypoints[wp].pose.pose)
+
+            if dist < dist_min:
+                dist_min = dist
+                wp_min = wp
+            
+        return wp_min
+
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -231,14 +229,34 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        labels = list(enumerate(['Red', 'Yellow', 'Green', 'None', 'None']))
+        if self.simulated_detection > 0:
+            if self.lights is None or light >= len(self.lights):
+                rospy.loginfo("[TL_DETECTOR] simulated_detectionL: No TL is detected. None")    
+                return TrafficLight.UNKNOWN
+            state = self.lights[light].state
+            rospy.loginfo("[TL_DETECTOR] simulated_detection: Nearest TL-state is: %s", labels[state][1])
+            return state
+
         if(not self.has_image):
             self.prev_light_loc = None
-            return False
+            rospy.loginfo("[TL_DETECTOR] has_image is None: No TL is detected. None")
+            return TrafficLight.UNKNOWN
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
+        tl_img = self.detect_traffic_light(cv_img)
+        if tl_img is not None:
+            #Get classification
+            state = self.light_classifier.get_classification(tl_img)
+            state = state if (state != self.invlaid_class_number) else TrafficLight.UNKNOWN
+            rospy.loginfo("[TL_DETECTOR] Nearest TL-state is: %s", labels[state][1])
+            return state
+        else:
+            rospy.loginfo("[TL_DETECTOR] tl_img is None: No TL is detected. None")
+            return TrafficLight.UNKNOWN
 
-        #Get classification
-        return self.light_classifier.get_classification(cv_image)
+            #return False
+            
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -263,6 +281,83 @@ class TLDetector(object):
             return light_wp, state
         self.waypoints = None
         return -1, TrafficLight.UNKNOWN
+
+
+        ###Added
+        self.publish_upcoming_red_light(light_wp, state)
+
+
+    def publish_upcoming_red_light(self, light_wp, state):
+        if self.state != state:
+            self.state_count = 0
+            self.state = state
+            
+        elif self.state_count >= STATE_COUNT_THRESHOLD:
+            self.last_state = self.state
+            light_wp = light_wp if state == TrafficLight.RED else -1
+            self.last_wp = light_wp
+            self.upcoming_red_light_pub.publish(Int32(light_wp))
+        else:
+            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+        self.state_count += 1
+
+
+    def extract_img(self, pred_img_mask, img):
+        if np.max(pred_img_mask) < self.projection_min:
+            return None
+
+        row_projection = np.sum(pred_img_mask, axis=1)
+        row_idx = np.argmax(row_projection)
+
+        if np.max(row_projection) < self.projection_threshold:
+            return None
+
+        zero_row_idx = np.argwhere(row_projection <= self.projection_threshold))
+        top_part = zero_row_idx[zero_row_idx < row_idx]
+        top = np.max(top_part) if top_part.size > 0 else 0
+        bottom_part = zero_row_idx[zero_row_idx > row_idx]
+        bottom = np.min(bottom_part) if bottom_part.size > 0 else self.resize_height
+
+        roi = pred_img_mask[top:bottom, :]
+        col_projection = np.sum(roi, axis=0)
+
+        if np.max(col_projection < self.projection_min):
+            return None
+
+        non_zero_col_idx = np.argwhere(col_projection > self.projection_min)
+
+        idx_of_col_idx = np.argmin(np.abs(non_zero_col_idx - self.middle_col))
+        col_idx = non_zero_col_idx[idx_of_col_idx][0]
+
+        non_zero_col_idx = np.argwhere(col_projection == 0)
+        left_side = non_zero_col_idx[zero_col_idx < col_idx]
+        left = np.max(left_side) if left_side.dize > 0 else 0
+        right_side = zero_col_idx[zero_col_idx > col_idx]
+        right = np,min(right_side) if right_side.size > 0 else self.resize_width
+        return image[int(top*self.resize_height_ratio):int(bottom*self.resize_height_ratio),
+                     int(left*self.resize_width_ratio):int(right*self.resize_width_ratio)]
+
+    
+    def detect_tl(self, cv_img):
+        resize_img = cv2.cvtColor(cv2.resize(cv_img, (self.resize_width, self.resize_height)), cv2.COLOR_RGB2GRAY)
+        resize_img = resize_img[..., np.newaxis]
+        if self.is_carla:
+            avg = np.mean(resize_img)
+            std = np.std(resize_img)
+            resize_img -= avg
+            resize_img /= std
+
+        img_mask = self.detector_model.predict(resize_img[None,:,:,:], batch_size=1)[0]
+        img_mask = (img_mask[:,:,0]*255).astype(np.uint8)
+        return self.extract_img(img_mask, cv_img)
+
+
+
+
+
+
+        
+
 
 if __name__ == '__main__':
     try:
