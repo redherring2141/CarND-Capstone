@@ -210,7 +210,7 @@ class TLDetector(object):
         wp_min = None
 
         for wp in range(len(self.waypoints_stamped.waypoints)):
-            dist = self.distance2(pose, self.waypoints_stamped.waypoints[wp].pose.pose)
+            dist = self.dist_euclead(pose, self.waypoints_stamped.waypoints[wp].pose.pose)
 
             if dist < dist_min:
                 dist_min = dist
@@ -256,7 +256,7 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
             #return False
-            
+
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -267,6 +267,7 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+        '''
         light = None
 
         # List of positions that correspond to the line to stop in front of for a given intersection
@@ -281,10 +282,23 @@ class TLDetector(object):
             return light_wp, state
         self.waypoints = None
         return -1, TrafficLight.UNKNOWN
-
+        '''
 
         ###Added
-        self.publish_upcoming_red_light(light_wp, state)
+        if self.pose_stamped is None or len(self.stoplines_wp) == 0:
+            rospy.loginfo("[TL_DETECTOR] No TL is detected. None")
+            return -1, TrafficLight.UNKNOWN
+
+        # Find the closest traffic light if exists
+        if light is None:
+            rospy.loginfo("[TL_DETECTOR] No TL is detected. None")
+            return -1, TrafficLight.UNKNOWN
+
+        state = self.get_light_state(light)
+
+        return self.stoplines_wp[light].state
+
+        
 
 
     def publish_upcoming_red_light(self, light_wp, state):
@@ -350,6 +364,11 @@ class TLDetector(object):
         img_mask = self.detector_model.predict(resize_img[None,:,:,:], batch_size=1)[0]
         img_mask = (img_mask[:,:,0]*255).astype(np.uint8)
         return self.extract_img(img_mask, cv_img)
+
+
+    def dist_euclead(self, pos1, pos2):
+        distance = (pos1.position.x-pos2.position.x)**2 + (pos1.position.y-pos2.position.y)**2
+        return distance
 
 
 
