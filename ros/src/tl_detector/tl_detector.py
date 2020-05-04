@@ -19,6 +19,8 @@ from keras.utils.generic_utils import get_custom_objects
 from keras import backend
 
 STATE_COUNT_THRESHOLD = 3
+VISIBLE_DISTANCE = 250
+SMOOTHNESS = 1.0
 
 class TLDetector(object):
     def __init__(self):
@@ -371,11 +373,75 @@ class TLDetector(object):
         return distance
 
 
+    def transform_to_car_frame(self, pose_stamped):
+        try:
+            self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(0.02))
+            transformed_pose_stamped = self.tf_listener.transformPose("base_link", pose_stamped)
+        except (tf.Exception, tf.LookupException, tf.ConnectivityException):
+            transformed_pose_stamped = None
+            rospy.logwarn("Failed to transform pose")
+
+        return transformed_pose_stamped
 
 
+    def get_closest_stopline_pose(self, pose):
+        stop_line_positions = self.config['stop_line_positions']
+        dist_min = sys.maxsize
+        stop_line_min = None
+
+        for stop_line_position in stop_line_positions:
+            stop_line_pose = Pose()
+            stop_line_pose.position.x = stop_line_position[0]
+            stop_line_pose.position.y = stop_line_position[1]
+            stop_line_pose.position.z = 0.0
+
+            dist = self.dist_euclead(pose, stop_line_pose)
+
+            if dist < dist_min:
+                dist_min = dist
+                stop_line_min = stop_line_pose
+
+        return stop_line_min
 
 
-        
+    def calculate_traffic_light_waypoints(self):
+        if self.waypoints_stamped is not None and self.lights is not None and len(self.lights_wp) == 0:
+            for i in range(len(self.lights)):
+                stopline = self.get_closest_stopline_pose(self.lights[i].pose.pose)
+                self.stoplines_wp.append(self.get_closest_waypoint(stopline))
+                self.lights_wp.append(self.get_closest_waypoint(self.lights[i].pose.pose))
+
+
+    def get_closest_visible_traffic_light(self, pose):
+        if self.waypoints_stamped is None or self.lights is None or len(self.lights_wp) == 0:
+            return None
+
+        num_lights = len(self.lights_wp)
+
+        dist_min = sys.maxsize
+        light_min = None
+
+        for light in range(num_lights):
+            dist = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light]].pose.pose)
+
+            if dist < dist_min:
+                dist_min = dist
+                light_min = light
+
+        transformed_waypoint = self.transform_to_car_frame(self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose)
+
+        if transformed_waypoint is not None and transformed_waypoint.pose.position.x <= 0.0:
+            light_min += 1
+
+        if light_min >= num_lights:
+            light_min -= num_lights
+
+        dist_euclead = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose)
+
+        if dist_euclead > (VISIBLE_DISTANCE ** 2):
+            return None
+
+        return light_min        
 
 
 if __name__ == '__main__':
