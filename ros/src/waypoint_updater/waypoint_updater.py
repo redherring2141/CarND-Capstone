@@ -92,7 +92,7 @@ class WaypointUpdater(object):
         #pass
 
 
-    def waypoints_cb(self, wpts):
+    def wpts_cb(self, wpts):
         # TODO: Implement
         if self.wpts_stamped != None:
             return

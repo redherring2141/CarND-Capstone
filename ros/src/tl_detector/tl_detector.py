@@ -53,7 +53,7 @@ class TLDetector(object):
         self.simulated_detection = rospy.get_param('~simulated_detection', 1)
         self.tl_detection_interval_frames = rospy.get_param('~tl_detection_interval_frames', 10)
 
-        config_string = rospy.get_param("/traffice_light_config")
+        config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
 
         # Setup classifier
@@ -328,7 +328,7 @@ class TLDetector(object):
         if np.max(row_projection) < self.projection_threshold:
             return None
 
-        zero_row_idx = np.argwhere(row_projection <= self.projection_threshold))
+        zero_row_idx = np.argwhere(row_projection <= self.projection_threshold)
         top_part = zero_row_idx[zero_row_idx < row_idx]
         top = np.max(top_part) if top_part.size > 0 else 0
         bottom_part = zero_row_idx[zero_row_idx > row_idx]

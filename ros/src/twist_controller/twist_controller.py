@@ -1,3 +1,9 @@
+from yaw_controller import YawController
+from lowpass import LowPassFilter
+from pid import PID
+
+import rospy
+
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -16,7 +22,7 @@ class Controller(object):
         self.lpf = LowPassFilter(kwargs['steering_tau'], 1.0/kwargs['sample_rate'])
 
         pid_gains = kwargs['throttle_gains']
-        self.pid = PId(pid_gains[0], pid_gains[1], pid_gains[2], kwargs['max_speed'])
+        self.pid = PID(pid_gains[0], pid_gains[1], pid_gains[2], kwargs['max_speed'])
 
         total_mass = kwargs['vehicle_mass'] + kwargs['fuel_capacity']*GAS_DENSITY
         self.max_brake_torque = total_mass * kwargs['decel_limit'] * kwargs['wheel_radius']
