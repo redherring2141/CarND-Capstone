@@ -6,6 +6,16 @@ from styx_msgs.msg import Lane, Waypoint
 
 import math
 
+from geometry_msgs.msg import TwistStamped
+from std_msgs.msg import Int32
+
+import sys
+import tf
+
+from utilities.kdtree import kdtree
+from utilities.hysteresis import hysteresis
+
+
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
 
@@ -65,12 +75,12 @@ class WaypointUpdater(object):
         next_wpt = self.get_nearest_wpt(self.pose_stamped.pose)
 
         # The next waypoint must be ahed of the current position
-        transformed_wpt = self.transform_to_car_frame(self.wpts_stamped.wpts[next_wpt].pose)
+        transformed_wpt = self.transform_to_car_frame(self.wpts_stamped.waypoints[next_wpt].pose)
 
         if (transformed_wpt != None) and (transformed_wpt.pose.position.x <= 0.0):
             next_wpt += 1
 
-        num_wayponts = len(self.wpts_stamped.wpts)
+        num_wayponts = len(self.wpts_stamped.waypoints)
 
         if next_wpt >= num_wpts:
             next_wpt -= num_wpts
@@ -80,31 +90,33 @@ class WaypointUpdater(object):
 
         for _wp, wp in enumerate(range(next_wpt, next_wpt + LOOKAHEAD_WPS)):
             wp_index = wp if (wp < num_wpts) else (wp - num_wpts)
-            next_wps[_wp] = self.wpts_stamped.wpts[wp_index]
+            next_wps[_wp] = self.wpts_stamped.waypoints[wp_index]
             self.set_wpt_velocity(next_wps, _wp, min(self.wpt_speeds[wp_index], self.get_trajectorty_speed_at_wpt(_wp)))
 
         # Construct final_waypoints message
         lane = Lane()
-        lane.wpts = next_wpslane.header.frame_id = self.wpts_stamped.header.frame_id
+        lane.wpts = next_wps
+        lane.header.frame_id = self.wpts_stamped.header.frame_id
         lane.header.stamp = rospy.Time(0)
 
-        self.wpts_stamped = msg
+        self.final_waypoints_pub.publish(lane)
+        #self.wpts_stamped = msg
         #pass
 
 
-    def wpts_cb(self, wpts):
+    def wpts_cb(self, msg):
         # TODO: Implement
         if self.wpts_stamped != None:
             return
 
         self.wpts_stamped = msg
 
-        for idx_wp in range(len(self.wpts_stamped.wpts)):
-            self.wpts_stamped.wpts[idx_wp].pose.header.frame_id = self.wpts_stamped.header.frame_id
+        for idx_wp in range(len(self.wpts_stamped.waypoints)):
+            self.wpts_stamped.waypoints[idx_wp].pose.header.frame_id = self.wpts_stamped.header.frame_id
             self.wpt_speeds.append(self.speed_limit)
 
         self.wpt_tree = kdtree([(wpt.pose.pose.position.x, wpt.pose.pose.position.y)
-                                    for wpt in self.wpts_stamped.wpts], 2)
+                                    for wpt in self.wpts_stamped.waypoints], 2)
         #pass
 
 
@@ -153,7 +165,7 @@ class WaypointUpdater(object):
         speed_max = self.wpt_speed[next_wpt]
 
         if self.wpt_redlight > 0:
-            dist_stop = self.distance(self.wpts_stamped.wpts, next_wpt, self.wpt_redlight)
+            dist_stop = self.distance(self.wpts_stamped.waypoints, next_wpt, self.wpt_redlight)
             if dist_stop > DIST_MIN:
                 diststop -= DIST_MIN
             speed_target = min(self.speed_curr, min(speed_max, math.sqrt(-2.0*ACC_MIN*DIST_MIN)))
