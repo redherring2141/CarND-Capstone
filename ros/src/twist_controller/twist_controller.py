@@ -33,7 +33,7 @@ class Controller(object):
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        u = self.pid.step(target.linear.x, current.linear.x, rospy.get_time())
+        u = self.pid.step(value_target.linear.x, value_curr.linear.x, rospy.get_time())
 
         if u > 0:
             # Acceleration control
