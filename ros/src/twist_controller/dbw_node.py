@@ -100,19 +100,19 @@ class DBWNode(object):
 
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg.data
-        rospy.logwarn("dbw_enabled_cb: %s", self.dbw_enabled)
+        #rospy.logwarn("dbw_enabled_cb: %s", self.dbw_enabled)
         if self.dbw_enabled == True:
             self.controller.reset()
 
 
     def curr_vel_cb(self,msg):
         self.vel_curr = msg.twist
-        rospy.logwarn("twist_velocity_cb: %s", self.vel_curr)
+        #rospy.logwarn("twist_velocity_cb: %s", self.vel_curr)
 
     
     def twist_cmd_cb(self, msg):
         self.twist_cmd = msg.twist
-        rospy.logwarn("twist_cmd_cb: %s", self.twist_cmd)
+        #rospy.logwarn("twist_cmd_cb: %s", self.twist_cmd)
 
 
 

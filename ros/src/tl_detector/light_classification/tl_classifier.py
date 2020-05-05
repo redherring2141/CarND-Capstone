@@ -1,3 +1,7 @@
+import cv2
+import tensorflow as tf
+import numpy as np
+
 from styx_msgs.msg import TrafficLight
 
 class TLClassifier(object):
@@ -14,7 +18,7 @@ class TLClassifier(object):
         self.model = model
         self.width = width
         self.height = height
-        self.channels = chennels
+        self.channels = channels
         self.graph = tf.get_default_graph()
 
     def get_classification(self, image):

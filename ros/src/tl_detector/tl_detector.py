@@ -7,6 +7,7 @@ from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from light_classification.tl_classifier import TLClassifier
+#import tensorflow as tf
 import tf
 import cv2
 import yaml
@@ -21,6 +22,16 @@ from keras import backend
 STATE_COUNT_THRESHOLD = 3
 VISIBLE_DISTANCE = 250
 SMOOTHNESS = 1.0
+
+def dice_coef(y_true, y_pred):
+    y_true_f = backend.flatten(y_true)
+    y_pred_f = backend.flatten(y_pred)
+    intersection = backend.sum(y_true_f * y_pred_f)
+    return (2.*intersection + SMOOTHNESS) / (backend.sum(y_true_f) + backend.sum(y_pred_f) + SMOOTHNESS)
+
+
+def dice_coef_loss(y_true, y_pred):
+    return -dice_coef(y_true, y_pred)
 
 class TLDetector(object):
     def __init__(self):
@@ -120,7 +131,7 @@ class TLDetector(object):
         self.pose = msg
 
 
-    def waypoints_cb(self, waypoints):
+    def waypoints_cb(self, msg):
         #self.waypoints = waypoints
         if self.waypoints_stamped is not None:
             return
@@ -441,7 +452,7 @@ class TLDetector(object):
         if dist_euclead > (VISIBLE_DISTANCE ** 2):
             return None
 
-        return light_min        
+        return light_min
 
 
 if __name__ == '__main__':
