@@ -54,6 +54,7 @@ class WaypointUpdater(object):
         self.wpt_tree = None
         self.wpt_speeds = []
         self.tf_listener = tf.TransformListener()
+        self.wpt_redlight = None
         self.next_wpt = -1
         self.speed_curr = None
         self.speed_target = 0.0
