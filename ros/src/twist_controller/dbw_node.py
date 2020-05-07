@@ -100,7 +100,7 @@ class DBWNode(object):
 
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg.data
-        rospy.logwarn("dbw_enabled_cb: %s", self.dbw_enabled)
+        #rospy.logwarn("dbw_enabled_cb: %s", self.dbw_enabled)
         if self.dbw_enabled == True:
             self.controller.reset()
 

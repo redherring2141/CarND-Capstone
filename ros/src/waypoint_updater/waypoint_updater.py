@@ -31,7 +31,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPTS = 200 # Number of waypoints we will publish. You can change this number
 ACC_MIN = -0.5
 DIST_MIN = 1
 
@@ -39,6 +39,7 @@ DIST_MIN = 1
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
+        print("debugging: wapoint_updater.py - initialization - line42")
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.wpts_cb)
@@ -89,9 +90,9 @@ class WaypointUpdater(object):
             next_wpt -= num_wpts
 
         self.calculate_trajectory(next_wpt) # Calculate the trajectory
-        next_wps = [None] * LOOKAHEAD_WPS # Construct a set of following waypoints
+        next_wps = [None] * LOOKAHEAD_WPTS # Construct a set of following waypoints
 
-        for _wp, wp in enumerate(range(next_wpt, next_wpt + LOOKAHEAD_WPS)):
+        for _wp, wp in enumerate(range(next_wpt, next_wpt + LOOKAHEAD_WPTS)):
             wp_index = wp if (wp < num_wpts) else (wp - num_wpts)
             next_wps[_wp] = self.wpts_stamped.waypoints[wp_index]
             self.set_wpt_vel(next_wps, _wp, min(self.wpt_speeds[wp_index], self.get_trajectory_speed_at_wpt(_wp)))

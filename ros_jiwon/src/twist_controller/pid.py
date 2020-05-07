@@ -30,12 +30,12 @@ class PID(object):
     def step(self, value_target, value_curr, sample_time):
         
         if self.t == None:
-            self.t = t
+            self.t = sample_time
             self.integral = 0.0
             self.error = value_target - value_curr
             return 0.0
 
-        delta_t = t - self.sample_time
+        delta_t = sample_time - self.t
 
         # Calculate error, integral, derivative
         error = value_target - value_curr

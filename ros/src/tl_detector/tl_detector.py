@@ -347,14 +347,14 @@ class TLDetector(object):
         #rospy.loginfo("[tl_detector.py - extract_img - line341] Detecting TL...extract_img()")
 
         if np.max(pred_img_mask) < self.projection_min:
-            print("debugging line 344")
+            #print("debugging line 344")
             return None
 
         row_projection = np.sum(pred_img_mask, axis=1)
         row_idx = np.argmax(row_projection)
 
         if np.max(row_projection) < self.projection_threshold:
-            print("debugging line 351")
+            #print("debugging line 351")
             return None
 
         zero_row_idx = np.argwhere(row_projection <= self.projection_threshold)

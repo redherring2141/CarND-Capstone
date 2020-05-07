@@ -21,7 +21,7 @@ class TLClassifier(object):
         self.channels = channels
         self.graph = tf.get_default_graph()
 
-    def get_classification(self, image):
+    def get_classification(self, img):
         """Determines the color of the traffic light in the image
 
         Args:
@@ -32,8 +32,8 @@ class TLClassifier(object):
 
         """
         #TODO implement light color prediction
-        resized = cv2.resize(imgae, (self.width, self.height))
-        resized = resized / 255.
+        resized = cv2.resize(img, (self.width, self.height))
+        resized = resized / 255.;
 
         with self.graph.as_default():
             predictions = self.model.predict(resized.reshape((1, self.height, self.width, self.channels)))
@@ -41,4 +41,5 @@ class TLClassifier(object):
             tl = TrafficLight()
             tl.state = color
             
-            return TrafficLight.UNKNOWN
+            #return TrafficLight.UNKNOWN
+            return tl.state
