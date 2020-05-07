@@ -245,15 +245,15 @@ class TLDetector(object):
         labels = list(enumerate(['Red', 'Yellow', 'Green', 'None', 'None']))
         if self.simulated_detection > 0:
             if self.lights is None or light >= len(self.lights):
-                rospy.loginfo("[TL_DETECTOR] simulated_detectionL: No TL is detected. None")    
+                rospy.loginfo("[TL_DETECTOR] simulated_detection: No TL detection.")    
                 return TrafficLight.UNKNOWN
             state = self.lights[light].state
-            rospy.loginfo("[TL_DETECTOR] simulated_detection: Nearest TL-state is: %s", labels[state][1])
+            rospy.loginfo("[tl_detector.py - get_light_state - line251] simulated_detection: Nearest TL-state is: %s", labels[state][1])
             return state
 
         if(not self.has_image):
             self.prev_light_loc = None
-            rospy.loginfo("[TL_DETECTOR] has_image is None: No TL is detected. None")
+            rospy.loginfo("[tl_detector.py - get_light_state - line256] has_image is None: No TL detection.")
             return TrafficLight.UNKNOWN
 
         cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
@@ -265,7 +265,7 @@ class TLDetector(object):
             rospy.loginfo("[TL_DETECTOR] Nearest TL-state is: %s", labels[state][1])
             return state
         else:
-            rospy.loginfo("[TL_DETECTOR] tl_img is None: No TL is detected. None")
+            rospy.loginfo("[tl_detector.py - get_light_state - line268] tl_img is None: No TL detection.")
             return TrafficLight.UNKNOWN
 
             #return False
@@ -299,12 +299,12 @@ class TLDetector(object):
 
         ###Added
         if self.pose_stamped is None or len(self.stoplines_wp) == 0:
-            rospy.loginfo("[TL_DETECTOR] No TL is detected. None")
+            rospy.loginfo("[tl_detector.py - process_traffic_lights - line302] No TL detection.")
             return -1, TrafficLight.UNKNOWN
 
         # Find the closest traffic light if exists
         if light is None:
-            rospy.loginfo("[TL_DETECTOR] No TL is detected. None")
+            rospy.loginfo("[tl_detector.py - process_traffic_lights - line307] No TL detection.")
             return -1, TrafficLight.UNKNOWN
 
         state = self.get_light_state(light)
