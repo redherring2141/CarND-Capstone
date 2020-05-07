@@ -299,8 +299,12 @@ class TLDetector(object):
 
         ###Added
         if self.pose_stamped is None or len(self.stoplines_wp) == 0:
+            #print("self.pose_stamped= ", self.pose_stamped)
+            #print("len(self.stoplines_wp", len(self.stoplines_wp))
             rospy.loginfo("[tl_detector.py - process_traffic_lights - line302] No TL detection.")
             return -1, TrafficLight.UNKNOWN
+
+        light = self.get_closest_visible_traffic_light(self.pose_stamped.pose)#Find the nearest visible TL.
 
         # Find the closest traffic light if exists
         if light is None:
@@ -389,8 +393,12 @@ class TLDetector(object):
             self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(0.02))
             transformed_pose_stamped = self.tf_listener.transformPose("base_link", pose_stamped)
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
-            transformed_pose_stamped = None
-            rospy.logwarn("Failed to transform pose")
+            try:
+                self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(0.02))
+                transformed_pose_stamped = self.tf_listener.transformPose("base_link", pose_stamped)
+            except (tf.Exception, tf.LookupException, tf.ConnectivityException):
+                transformed_pose_stamped = None
+                rospy.logwarn("Failed to transform pose")
 
         return transformed_pose_stamped
 

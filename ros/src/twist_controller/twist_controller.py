@@ -45,7 +45,7 @@ class Controller(object):
             brake = self.max_brake_torque * min(self.min_brake, u/self.pid.max_abs_u)
 
         # Steering control
-        steering = self.plt.filt(self.yaw_control.get_steering(target.linear.x, target.angular.z, current.linear.x))
+        steering = self.lpf.filt(self.yaw_control.get_steering(target.linear.x, target.angular.z, current.linear.x))
                 
         #return 1., 0., 0.
         return throttle, brake, steering
