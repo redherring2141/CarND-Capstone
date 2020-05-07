@@ -128,7 +128,7 @@ class TLDetector(object):
 
 
     def pose_cb(self, msg):
-        self.pose = msg
+        self.pose_stamped = msg
 
 
     def waypoints_cb(self, msg):
@@ -257,7 +257,7 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
-        tl_img = self.detect_traffic_light(cv_img)
+        tl_img = self.detect_tl(cv_img)
         if tl_img is not None:
             #Get classification
             state = self.light_classifier.get_classification(tl_img)
@@ -313,7 +313,7 @@ class TLDetector(object):
 
         state = self.get_light_state(light)
 
-        return self.stoplines_wp[light].state
+        return self.stoplines_wp[light], state
 
         
 
@@ -455,7 +455,7 @@ class TLDetector(object):
         if light_min >= num_lights:
             light_min -= num_lights
 
-        dist_euclead = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose)
+        dist_euclead = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose.pose)
 
         if dist_euclead > (VISIBLE_DISTANCE ** 2):
             return None

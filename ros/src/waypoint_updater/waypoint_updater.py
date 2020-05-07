@@ -69,7 +69,7 @@ class WaypointUpdater(object):
         # TODO: Implement
         self.pose_stamped = msg
 
-        if (self.wpts_stamped == None) or (self.wpt_redlight == None) or (self.speed_curr == None):
+        if ((self.wpts_stamped == None) or (self.wpt_redlight == None) or (self.speed_curr == None)):
             return # Do nothing unless all msgs received
 
         # Find the nearest waypoint to the current position
