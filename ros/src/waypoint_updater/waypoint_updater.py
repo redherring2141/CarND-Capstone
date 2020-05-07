@@ -57,10 +57,10 @@ class WaypointUpdater(object):
         self.wpt_redlight = None
         self.next_wpt = -1
         self.speed_curr = None
-        self.speed_target = 0.0
+        self.trajectory_speed_target = 0.0
         self.trajectory_speed_hysteresis = hysteresis(2.0, 2.1, 0.0)
-        self.pose_stamped = None        #Current pose
-        self.wpts_stamped = None   #Base waypoints
+        self.pose_stamped = None    #Current pose
+        self.wpts_stamped = None    #Base waypoints
 
         rospy.spin()
 
@@ -68,10 +68,12 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         # TODO: Implement
         self.pose_stamped = msg
+        rospy.loginfo("waypoint_updater:pose_cb:self.pose_stamped %s", self.pose_stamped)
 
         if ((self.wpts_stamped == None) or (self.wpt_redlight == None) or (self.speed_curr == None)):
+            rospy.loginfo("debugging: wapoint_updater.py - pose_cb - line73")
             return # Do nothing unless all msgs received
-
+        rospy.loginfo("[debugging: wapoint_updater.py - pose_cb - line75]")
         # Find the nearest waypoint to the current position
         next_wpt = self.get_nearest_wpt(self.pose_stamped.pose)
 
@@ -81,7 +83,7 @@ class WaypointUpdater(object):
         if (transformed_wpt != None) and (transformed_wpt.pose.position.x <= 0.0):
             next_wpt += 1
 
-        num_wayponts = len(self.wpts_stamped.waypoints)
+        num_wpts = len(self.wpts_stamped.waypoints)
 
         if next_wpt >= num_wpts:
             next_wpt -= num_wpts
@@ -92,15 +94,17 @@ class WaypointUpdater(object):
         for _wp, wp in enumerate(range(next_wpt, next_wpt + LOOKAHEAD_WPS)):
             wp_index = wp if (wp < num_wpts) else (wp - num_wpts)
             next_wps[_wp] = self.wpts_stamped.waypoints[wp_index]
-            self.set_wpt_velocity(next_wps, _wp, min(self.wpt_speeds[wp_index], self.get_trajectorty_speed_at_wpt(_wp)))
+            self.set_wpt_vel(next_wps, _wp, min(self.wpt_speeds[wp_index], self.get_trajectory_speed_at_wpt(_wp)))
 
         # Construct final_waypoints message
         lane = Lane()
-        lane.wpts = next_wps
+        lane.waypoints = next_wps
         lane.header.frame_id = self.wpts_stamped.header.frame_id
         lane.header.stamp = rospy.Time(0)
 
-        self.final_waypoints_pub.publish(lane)
+        #rospy.loginfo("[debugging wapoint_updater.py - pose_cb - line105: final_waypoints published")
+        self.final_wpts_pub.publish(lane)
+        
         #self.wpts_stamped = msg
         #pass
 
@@ -116,8 +120,7 @@ class WaypointUpdater(object):
             self.wpts_stamped.waypoints[idx_wp].pose.header.frame_id = self.wpts_stamped.header.frame_id
             self.wpt_speeds.append(self.speed_limit)
 
-        self.wpt_tree = kdtree([(wpt.pose.pose.position.x, wpt.pose.pose.position.y)
-                                    for wpt in self.wpts_stamped.waypoints], 2)
+        self.wpt_tree = kdtree([(wpt.pose.pose.position.x, wpt.pose.pose.position.y) for wpt in self.wpts_stamped.waypoints], 2)
         #pass
 
 
@@ -163,28 +166,30 @@ class WaypointUpdater(object):
 
 
     def calculate_trajectory(self, next_wpt):# Calculate a trajectory
-        speed_max = self.wpt_speed[next_wpt]
+        speed_max = self.wpt_speeds[next_wpt]
 
         if self.wpt_redlight > 0:
+            print("debugging: wapoint_updater.py - calculate_trajectory - line169")
             dist_stop = self.distance(self.wpts_stamped.waypoints, next_wpt, self.wpt_redlight)
             if dist_stop > DIST_MIN:
-                diststop -= DIST_MIN
+                dist_stop -= DIST_MIN
             speed_target = min(self.speed_curr, min(speed_max, math.sqrt(-2.0*ACC_MIN*DIST_MIN)))
         else:
+            print("debugging: wapoint_updater.py - calculate_trajectory - line175")
             speed_target = speed_max
 
         self.speed_target = self.trajectory_speed_hysteresis.output(speed_target)
 
     
-    def get_trajectory_speed_at_waypoint(self, wpt):# Get the expected speed at a waypoint
-        return self.trajectory_target_speed
+    def get_trajectory_speed_at_wpt(self, wpt):# Get the expected speed at a waypoint
+        return self.trajectory_speed_target
 
 
     def get_waypoint_velocity(self, wpt):
         return wpt.twist.twist.linear.x
 
 
-    def set_waypoint_velocity(self, wpts, wpt, velocity):
+    def set_wpt_vel(self, wpts, wpt, velocity):
         wpts[wpt].twist.twist.linear.x = velocity
 
 

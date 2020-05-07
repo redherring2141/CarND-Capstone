@@ -181,6 +181,9 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
 
+        self.publish_upcoming_red_light(light_wp, state)
+
+
         '''
         Publish upcoming red lights at camera frequency.
         Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
@@ -257,8 +260,8 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
-        if cv_img is not None:
-            print("cv_img generated")
+        #if cv_img is not None:
+            #print("cv_img generated")
             #cv2.imshow('cv_img', cv_img)
         tl_img = self.detect_tl(cv_img)
         #cv2.imshow('tl_img', tl_img)
@@ -323,22 +326,25 @@ class TLDetector(object):
 
 
     def publish_upcoming_red_light(self, light_wp, state):
+        #print("[debugging tl_detector.py - publish_upcoming_red_light - line329: 0 ")
         if self.state != state:
             self.state_count = 0
             self.state = state
-            
+                    
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+            #print("[debugging tl_detector.py - publish_upcoming_red_light - line337: 1 ")
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            #print("[debugging tl_detector.py - publish_upcoming_red_light - line340: 2 ")
         self.state_count += 1
 
 
     def extract_img(self, pred_img_mask, img):
-        rospy.loginfo("[tl_detector.py - extract_img - line341] Detecting TL...extract_img()")
+        #rospy.loginfo("[tl_detector.py - extract_img - line341] Detecting TL...extract_img()")
 
         if np.max(pred_img_mask) < self.projection_min:
             print("debugging line 344")
@@ -381,8 +387,8 @@ class TLDetector(object):
     
     def detect_tl(self, cv_img):
         resize_img = cv2.cvtColor(cv2.resize(cv_img, (self.resize_width, self.resize_height)), cv2.COLOR_RGB2GRAY)
-        if (resize_img is not None):
-            print("resize_img generated")
+        #if (resize_img is not None):
+        #    print("resize_img generated")
 
         resize_img = resize_img[..., np.newaxis]
         if self.is_carla:
