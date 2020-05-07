@@ -68,17 +68,16 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         # Setup classifier
-        rospy.loginfo("[TL_DETECTOR Loading TLClassifier model")
+        rospy.loginfo("[tl_detector.py - initialization - line71] Loading TLClassifier model")
         self.light_classifier = TLClassifier()
         model = load_model(self.config['tl']['tl_classification_model'])
         resize_width = self.config['tl']['classifier_resize_width']
         resize_height = self.config['tl']['classifier_resize_height']
-
         self.light_classifier.setup_classifier(model, resize_width, resize_height)
         self.invlaid_class_number = 3
 
         # Setup detector
-        rospy.loginfo("[TL_DETECTOR] Loading TLDetector model")
+        rospy.loginfo("[tl_detector.py - initialization - line80] Loading TLDetector model")
         custom_objects = {'dice_coef_loss': dice_coef_loss, 'dice_coef': dice_coef}
         
         self.detector_model = load_model(self.config['tl']['tl_detection_model'], custom_objects = custom_objects)
@@ -92,6 +91,7 @@ class TLDetector(object):
         self.projection_threshold = self.config['tl']['projection_threshold']
         self.projection_min = self.config['tl']['projection_min']
         self.color_mode = self.config['tl']['color_mode']
+        rospy.loginfo("[tl_detector.py - initialization - line94] Loaded TLDetector model")
 
         
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -105,10 +105,10 @@ class TLDetector(object):
         rely on the position of the light and the camera image to predict it.
         '''
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
 
-        config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.load(config_string)
+        #config_string = rospy.get_param("/traffic_light_config")
+        #self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
@@ -245,7 +245,7 @@ class TLDetector(object):
         labels = list(enumerate(['Red', 'Yellow', 'Green', 'None', 'None']))
         if self.simulated_detection > 0:
             if self.lights is None or light >= len(self.lights):
-                rospy.loginfo("[TL_DETECTOR] simulated_detection: No TL detection.")    
+                rospy.loginfo("[tl_detector.py - get_light_state - line248] simulated_detection: No TL detection.")    
                 return TrafficLight.UNKNOWN
             state = self.lights[light].state
             rospy.loginfo("[tl_detector.py - get_light_state - line251] simulated_detection: Nearest TL-state is: %s", labels[state][1])
@@ -257,15 +257,19 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
+        if cv_img is not None:
+            print("cv_img generated")
+            #cv2.imshow('cv_img', cv_img)
         tl_img = self.detect_tl(cv_img)
+        #cv2.imshow('tl_img', tl_img)
         if tl_img is not None:
             #Get classification
             state = self.light_classifier.get_classification(tl_img)
             state = state if (state != self.invlaid_class_number) else TrafficLight.UNKNOWN
-            rospy.loginfo("[TL_DETECTOR] Nearest TL-state is: %s", labels[state][1])
+            rospy.loginfo("[tl_detector.py - get_light_state - line269] Nearest TL-state is: %s", labels[state][1])
             return state
         else:
-            rospy.loginfo("[tl_detector.py - get_light_state - line268] tl_img is None: No TL detection.")
+            rospy.loginfo("[tl_detector.py - get_light_state - line272] tl_img is None: No TL detection.")
             return TrafficLight.UNKNOWN
 
             #return False
@@ -334,13 +338,17 @@ class TLDetector(object):
 
 
     def extract_img(self, pred_img_mask, img):
+        rospy.loginfo("[tl_detector.py - extract_img - line341] Detecting TL...extract_img()")
+
         if np.max(pred_img_mask) < self.projection_min:
+            print("debugging line 344")
             return None
 
         row_projection = np.sum(pred_img_mask, axis=1)
         row_idx = np.argmax(row_projection)
 
         if np.max(row_projection) < self.projection_threshold:
+            print("debugging line 351")
             return None
 
         zero_row_idx = np.argwhere(row_projection <= self.projection_threshold)
@@ -352,7 +360,9 @@ class TLDetector(object):
         roi = pred_img_mask[top:bottom, :]
         col_projection = np.sum(roi, axis=0)
 
-        if np.max(col_projection < self.projection_min):
+        if np.max(col_projection) < self.projection_min:
+            print("debugging line 364")
+            print("col_projection:", col_projection, "self.projection_min:", self.projection_min)
             return None
 
         non_zero_col_idx = np.argwhere(col_projection > self.projection_min)
@@ -360,17 +370,20 @@ class TLDetector(object):
         idx_of_col_idx = np.argmin(np.abs(non_zero_col_idx - self.middle_col))
         col_idx = non_zero_col_idx[idx_of_col_idx][0]
 
-        non_zero_col_idx = np.argwhere(col_projection == 0)
-        left_side = non_zero_col_idx[zero_col_idx < col_idx]
-        left = np.max(left_side) if left_side.dize > 0 else 0
+        zero_col_idx = np.argwhere(col_projection == 0)
+        left_side = zero_col_idx[zero_col_idx < col_idx]
+        left = np.max(left_side) if left_side.size > 0 else 0
         right_side = zero_col_idx[zero_col_idx > col_idx]
-        right = np,min(right_side) if right_side.size > 0 else self.resize_width
-        return image[int(top*self.resize_height_ratio):int(bottom*self.resize_height_ratio),
+        right = np.min(right_side) if right_side.size > 0 else self.resize_width
+        return img[int(top*self.resize_height_ratio):int(bottom*self.resize_height_ratio),
                      int(left*self.resize_width_ratio):int(right*self.resize_width_ratio)]
 
     
     def detect_tl(self, cv_img):
         resize_img = cv2.cvtColor(cv2.resize(cv_img, (self.resize_width, self.resize_height)), cv2.COLOR_RGB2GRAY)
+        if (resize_img is not None):
+            print("resize_img generated")
+
         resize_img = resize_img[..., np.newaxis]
         if self.is_carla:
             avg = np.mean(resize_img)
@@ -379,7 +392,16 @@ class TLDetector(object):
             resize_img /= std
 
         img_mask = self.detector_model.predict(resize_img[None,:,:,:], batch_size=1)[0]
+        '''
+        if (img_mask is not None):
+            print("img_mask generated 1")
+        '''
         img_mask = (img_mask[:,:,0]*255).astype(np.uint8)
+        '''
+        if (img_mask is not None):
+            print("img_mask generated 2")
+        '''
+        
         return self.extract_img(img_mask, cv_img)
 
 
