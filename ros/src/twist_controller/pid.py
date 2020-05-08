@@ -23,7 +23,7 @@ class PID(object):
 
 
     def reset(self):
-        self.t = 0.0
+        self.t = None
 
 
     #def step(self, error, sample_time):
@@ -43,7 +43,9 @@ class PID(object):
         derivative = (error - self.error) / delta_t
 
         # Calculate PID control
-        control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
+        #control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
+        control = self.kp * error + self.ki * integral + self.kd * derivative
+        control = max(self.min, min(self.max, control))
 
         self.t = delta_t
         self.error = error

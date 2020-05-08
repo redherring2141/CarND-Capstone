@@ -43,9 +43,13 @@ class Controller(object):
             # Deceleration control
             throttle = 0.0
             brake = self.max_brake_torque * min(self.min_brake, u/self.pid.max_abs_u)
+        
+        print("[twist_controller.py - control - line47] u = ", u)
+        print("[twist_controller.py - control - line48] throttle = ", throttle)
+        print("[twist_controller.py - control - line49] brake = ", brake)
 
         # Steering control
-        steering = self.lpf.filt(self.yaw_control.get_steering(value_target.linear.x, value_target.target.angular.z, value_curr.linear.x))
+        steering = self.lpf.filt(self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x))
                 
         #return 1., 0., 0.
         return throttle, brake, steering
