@@ -39,7 +39,7 @@ DIST_MIN = 1
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
-        print("debugging: wapoint_updater.py - initialization - line42")
+        #rospy.logwarn("debugging: wapoint_updater.py - initialization - line42")
 
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.wpts_cb)

@@ -46,6 +46,8 @@ class Controller(object):
 
         # rospy.logwarn("current %04.3f target %04.3f target w %04.3f u %04.3f %04.3f:%04.3f:%04.3f",
         #     current.linear.x, target.linear.x, target.angular.z, u, throttle, brake, steering)
+        #rospy.logwarn("[twist_controller.py] u=%f, self.max_brake_torque=%f, self.min_brake=%f, self.pid.max_abs_u=%f", u, self.max_brake_torque, self.min_brake, self.pid.max_abs_u)
+
 
         return throttle, brake, steering
 

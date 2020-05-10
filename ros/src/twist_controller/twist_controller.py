@@ -43,10 +43,11 @@ class Controller(object):
             # Deceleration control
             throttle = 0.0
             brake = self.max_brake_torque * min(self.min_brake, u/self.pid.max_abs_u)
+            brake = u
         
-        print("[twist_controller.py - control - line47] u = ", u)
-        print("[twist_controller.py - control - line48] throttle = ", throttle)
-        print("[twist_controller.py - control - line49] brake = ", brake)
+        #rospy.logwarn("[twist_controller.py - control - line47] self.max_brake_torque = %f", self.max_brake_torque)
+        #rospy.logwarn("[twist_controller.py - control - line48] self.min_brake = %f", self.min_brake)
+        #rospy.logwarn("[twist_controller.py - control - line49] self.pid.max_abs_u = %f", self.pid.max_abs_u)
 
         # Steering control
         steering = self.lpf.filt(self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x))

@@ -47,7 +47,7 @@ class PID(object):
         control = self.kp * error + self.ki * integral + self.kd * derivative
         control = max(self.min, min(self.max, control))
 
-        self.t = delta_t
+        self.t = sample_time
         self.error = error
         self.integral = integral        
 
