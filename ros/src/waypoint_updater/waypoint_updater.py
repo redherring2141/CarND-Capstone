@@ -176,8 +176,9 @@ class WaypointUpdater(object):
         else:
             #rospy.logwarn("debugging: wapoint_updater.py - calculate_trajectory - line177")
             speed_target = speed_max
+            rospy.logwarn("waypoint_updater.py - calculate_trajectory: speed_target=%f", speed_target)
 
-        self.speed_target = self.trajectory_speed_hysteresis.output(speed_target)
+        self.trajectory_target_speed = self.trajectory_speed_hysteresis.output(speed_target)
 
     
     def get_trajectory_speed_at_wpt(self, wpt):# Get the expected speed at a waypoint
