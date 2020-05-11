@@ -207,7 +207,7 @@ class WaypointUpdater(object):
 
         """
         max_speed = self.waypoint_speeds[next_waypoint]
-        rospy.logwarn("[wapoint_updater.py - calculate_trajectory - line168] self.red_light_waypoint = %f", self.red_light_waypoint)
+        #rospy.logwarn("[wapoint_updater.py - calculate_trajectory - line168] self.red_light_waypoint = %f", self.red_light_waypoint)
         if self.red_light_waypoint > 0:
             # u = speed at next waypoint  0 = speed at traffic light waypoint a = acceleration
             # s = distance between next waypoint and traffic light waypoint 
@@ -218,6 +218,8 @@ class WaypointUpdater(object):
             trajectory_target_speed = min(self.current_speed, min(max_speed, math.sqrt(-2.0 * MIN_ACCELERATION * stopping_distance)))
         else:
             trajectory_target_speed = max_speed
+        
+        rospy.logwarn("waypoint_updater.py - calculate_trajectory: trajectory_target_speed=%f", trajectory_target_speed)
 
         self.trajectory_target_speed  = self.trajectory_speed_hysteresis.output(trajectory_target_speed)
 

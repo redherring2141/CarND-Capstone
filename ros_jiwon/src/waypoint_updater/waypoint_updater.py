@@ -81,6 +81,7 @@ class WaypointUpdater(object):
             next_wpt += 1
 
         num_wpts = len(self.wpts_stamped.waypoints)
+        rospy.logwarn("waypoint_updater.py - pose_cb: num_wpts=%f", num_wpts)
 
         if next_wpt >= num_wpts:
             next_wpt -= num_wpts
@@ -176,7 +177,8 @@ class WaypointUpdater(object):
         else:
             #rospy.logwarn("debugging: wapoint_updater.py - calculate_trajectory - line177")
             speed_target = speed_max
-            rospy.logwarn("waypoint_updater.py - calculate_trajectory: speed_target=%f", speed_target)
+        
+        #rospy.logwarn("waypoint_updater.py - calculate_trajectory: speed_target=%f", speed_target)
 
         self.trajectory_target_speed = self.trajectory_speed_hysteresis.output(speed_target)
 
