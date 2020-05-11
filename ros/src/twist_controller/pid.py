@@ -1,3 +1,4 @@
+import rospy
 
 MIN_NUM = float('-inf')
 MAX_NUM = float('inf')
@@ -11,7 +12,7 @@ class PID(object):
         self.min = mn
         self.max = mx
 
-        self.int_val = self.last_error = 0.
+        #self.int_val = self.last_error = 0.
 
         # Approximation - added
         self.max_abs_u = (abs(self.kp) + abs(self.ki) + abs(self.kd)) * abs(max_input)
@@ -46,6 +47,7 @@ class PID(object):
         #control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
         control = self.kp * error + self.ki * integral + self.kd * derivative
         control = max(self.min, min(self.max, control))
+        #rospy.logwarn("[pid.py] control = %f", control)
 
         self.t = sample_time
         self.error = error

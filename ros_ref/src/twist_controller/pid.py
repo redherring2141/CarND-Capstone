@@ -1,3 +1,4 @@
+import rospy
 
 MIN_NUM = float('-inf')
 MAX_NUM = float('inf')
@@ -41,6 +42,7 @@ class PID(object):
         # control input = P * error + I * integral(error) + D * derivative(error)
         control = self.kp * error + self.ki * integral + self.kd * derivative
         control = max(self.min, min(self.max, control))
+        rospy.logwarn("[pid.py] control = %f", control)
 
         # Record state
         self.t = t

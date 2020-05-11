@@ -18,16 +18,12 @@ from utilities.hysteresis import hysteresis
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
-
 As mentioned in the doc, you should ideally first implement a version which does not care
 about traffic lights or obstacles.
-
 Once you have created dbw_node, you will update this node to use the status of traffic lights too.
-
 Please note that our simulator also provides the exact location of traffic lights and their
 current status in `/vehicle/traffic_lights` message. You can use this message to build this node
 as well as to verify your TL classifier.
-
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
@@ -69,12 +65,12 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         # TODO: Implement
         self.pose_stamped = msg
-        rospy.loginfo("waypoint_updater:pose_cb:self.pose_stamped %s", self.pose_stamped)
+        #rospy.logwarn("waypoint_updater:pose_cb:self.pose_stamped %s", self.pose_stamped)
 
         if ((self.wpts_stamped == None) or (self.wpt_redlight == None) or (self.speed_curr == None)):
-            rospy.loginfo("debugging: wapoint_updater.py - pose_cb - line73")
+            #rospy.logwarn("debugging: wapoint_updater.py - pose_cb - line73")
             return # Do nothing unless all msgs received
-        rospy.loginfo("[debugging: wapoint_updater.py - pose_cb - line75]")
+        #rospy.logwarn("[debugging: wapoint_updater.py - pose_cb - line75]")
         # Find the nearest waypoint to the current position
         next_wpt = self.get_nearest_wpt(self.pose_stamped.pose)
 
@@ -89,6 +85,7 @@ class WaypointUpdater(object):
         if next_wpt >= num_wpts:
             next_wpt -= num_wpts
 
+        #rospy.logwarn("debugging: wapoint_updater.py - pose_cb - line88")
         self.calculate_trajectory(next_wpt) # Calculate the trajectory
         next_wps = [None] * LOOKAHEAD_WPTS # Construct a set of following waypoints
 
@@ -168,15 +165,16 @@ class WaypointUpdater(object):
 
     def calculate_trajectory(self, next_wpt):# Calculate a trajectory
         speed_max = self.wpt_speeds[next_wpt]
+        #rospy.logwarn("[wapoint_updater.py - calculate_trajectory - line168] self.wpt_redlight = %f", self.wpt_redlight)
 
         if self.wpt_redlight > 0:
-            print("debugging: wapoint_updater.py - calculate_trajectory - line169")
+            #rospy.logwarn("wapoint_updater.py - calculate_trajectory - line171] self.wpt_redlight")
             dist_stop = self.distance(self.wpts_stamped.waypoints, next_wpt, self.wpt_redlight)
             if dist_stop > DIST_MIN:
                 dist_stop -= DIST_MIN
-            speed_target = min(self.speed_curr, min(speed_max, math.sqrt(-2.0*ACC_MIN*DIST_MIN)))
+            speed_target = min(self.speed_curr, min(speed_max, math.sqrt(-2.0*ACC_MIN*dist_stop)))
         else:
-            print("debugging: wapoint_updater.py - calculate_trajectory - line175")
+            #rospy.logwarn("debugging: wapoint_updater.py - calculate_trajectory - line177")
             speed_target = speed_max
 
         self.speed_target = self.trajectory_speed_hysteresis.output(speed_target)
