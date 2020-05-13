@@ -76,11 +76,11 @@ class WaypointUpdater(object):
         # The next waypoint must be ahed of the current position
         transformed_wpt = self.transform_to_car_frame(self.wpts_stamped.waypoints[next_wpt].pose)
 
-        if (transformed_wpt != None) and (transformed_wpt.pose.position.x <= 0.0):
+        if ((transformed_wpt != None) and (transformed_wpt.pose.position.x <= 0.0)):
             next_wpt += 1
 
         num_wpts = len(self.wpts_stamped.waypoints)
-        rospy.logwarn("waypoint_updater.py - pose_cb: num_wpts=%f", num_wpts)
+        #rospy.logwarn("waypoint_updater.py - pose_cb: num_wpts=%f", num_wpts)
 
         if next_wpt >= num_wpts:
             next_wpt -= num_wpts
