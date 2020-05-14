@@ -49,9 +49,9 @@ class Controller(object):
         #rospy.logwarn("[twist_controller.py - control - line49] self.pid.max_abs_u = %f", self.pid.max_abs_u)
 
         # Steering control
-        #steering = self.lpf.filt(self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x))
-        steering = self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x)
-        steering = self.lpf.filt(steering)
+        steering = self.lpf.filt(self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x))
+        #steering = self.yaw_control.get_steering(value_target.linear.x, value_target.angular.z, value_curr.linear.x)
+        #steering = self.lpf.filt(steering)
                 
         #return 1., 0., 0.
         return throttle, brake, steering

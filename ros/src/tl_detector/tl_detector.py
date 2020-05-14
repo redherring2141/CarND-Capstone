@@ -39,14 +39,14 @@ class TLDetector(object):
 
         #self.pose = None
         #self.waypoints = None
-        #self.camera_image = None
+        #self.cam_img = None
         #self.lights = []
 
-        self.pose_stamped = None
-        self.waypoints_stamped = None
-        self.caemra_image = None
+        self.pose_curr = None
+        self.wpts_base = None
+        self.cam_img = None
         self.lights = None
-        self.has_image = False
+        self.has_img = False
         self.light_classifier = TLClassifier()
         self.tf_listener = tf.TransformListener()
         self.prev_light_loc = None
@@ -59,7 +59,7 @@ class TLDetector(object):
         self.lights_wp = []
         self.stoplines_wp = []
 
-        self.camera_callback_count = 0
+        self.cam_cb_count = 0
 
         self.simulated_detection = rospy.get_param('~simulated_detection', 1)
         self.tl_detection_interval_frames = rospy.get_param('~tl_detection_interval_frames', 10)
@@ -74,7 +74,7 @@ class TLDetector(object):
         resize_width = self.config['tl']['classifier_resize_width']
         resize_height = self.config['tl']['classifier_resize_height']
         self.light_classifier.setup_classifier(model, resize_width, resize_height)
-        self.invlaid_class_number = 3
+        self.invalid_class_number = 3
 
         # Setup detector
         rospy.loginfo("[tl_detector.py - initialization - line80] Loading TLDetector model")
@@ -86,7 +86,7 @@ class TLDetector(object):
         self.resize_height = self.config['tl']['detector_resize_height']
         self.resize_height_ratio = self.config['camera_info']['image_height'] / float(self.resize_height)
         self.resize_width_ratio = self.config['camera_info']['image_width'] / float(self.resize_width)
-        self.middle_col = self.resize_width / 2
+        self.mid_col = self.resize_width / 2
         self.is_carla = self.config['tl']['is_carla']
         self.projection_threshold = self.config['tl']['projection_threshold']
         self.projection_min = self.config['tl']['projection_min']
@@ -95,7 +95,7 @@ class TLDetector(object):
 
         
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.wpts_cb)
 
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
@@ -105,7 +105,7 @@ class TLDetector(object):
         rely on the position of the light and the camera image to predict it.
         '''
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
+        sub6 = rospy.Subscriber('/image_color', Image, self.img_cb, queue_size=1)
 
         #config_string = rospy.get_param("/traffic_light_config")
         #self.config = yaml.load(config_string)
@@ -128,27 +128,27 @@ class TLDetector(object):
 
 
     def pose_cb(self, msg):
-        self.pose_stamped = msg
+        self.pose_curr = msg
 
 
-    def waypoints_cb(self, msg):
+    def wpts_cb(self, msg):
         #self.waypoints = waypoints
-        if self.waypoints_stamped is not None:
+        if self.wpts_base is not None:
             return
         
-        self.waypoints_stamped = msg
+        self.wpts_base = msg
 
-        for i in range(len(self.waypoints_stamped.waypoints)):
-            self.waypoints_stamped.waypoints[i].pose.header.frame_id = self.waypoints_stamped.header.frame_id
+        for i in range(len(self.wpts_base.waypoints)):
+            self.wpts_base.waypoints[i].pose.header.frame_id = self.wpts_base.header.frame_id
 
-        self.calculate_traffic_light_waypoints()
+        self.calc_tl_wpts()
     
 
     def traffic_cb(self, msg):
         #self.lights = msg.lights
         if self.simulated_detection > 0:
             self.lights = msg.lights
-            self.calculate_traffic_light_waypoints()
+            self.calc_tl_wpts()
 
             light_wp, state = self.process_traffic_lights()
             self.publish_upcoming_red_light(light_wp, state)
@@ -157,10 +157,10 @@ class TLDetector(object):
                 return
             
             self.lights = msg.lights
-            self.calculate_traffic_light_waypoints()
+            self.calc_tl_wpts()
             
 
-    def image_cb(self, msg):
+    def img_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
             of the waypoint closest to the red light's stop line to /traffic_waypoint
 
@@ -168,17 +168,17 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
-        self.camera_callback_count += 1
+        self.cam_cb_count += 1
 
-        if self.camera_callback_count < self.tl_detection_interval_frames:
+        if self.cam_cb_count < self.tl_detection_interval_frames:
             return
 
-        self.camera_callback_count = 0
+        self.cam_cb_count = 0
 
 
         # Original code
-        self.has_image = True
-        self.camera_image = msg
+        self.has_img = True
+        self.cam_img = msg
         light_wp, state = self.process_traffic_lights()
 
         self.publish_upcoming_red_light(light_wp, state)
@@ -206,7 +206,7 @@ class TLDetector(object):
         '''
 
 
-    def get_closest_waypoint(self, pose):
+    def get_nearest_wpt(self, pose):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
@@ -219,14 +219,14 @@ class TLDetector(object):
         #TODO implement
         #return 0
 
-        if self.waypoints_stamped is None:
+        if self.wpts_base is None:
             return None
         
         dist_min = sys.maxsize
         wp_min = None
 
-        for wp in range(len(self.waypoints_stamped.waypoints)):
-            dist = self.dist_euclead(pose, self.waypoints_stamped.waypoints[wp].pose.pose)
+        for wp in range(len(self.wpts_base.waypoints)):
+            dist = self.dist_euclead(pose, self.wpts_base.waypoints[wp].pose.pose)
 
             if dist < dist_min:
                 dist_min = dist
@@ -254,12 +254,12 @@ class TLDetector(object):
             rospy.loginfo("[tl_detector.py - get_light_state - line251] simulated_detection: Nearest TL-state is: %s", labels[state][1])
             return state
 
-        if(not self.has_image):
+        if(not self.has_img):
             self.prev_light_loc = None
             rospy.loginfo("[tl_detector.py - get_light_state - line256] has_image is None: No TL detection.")
             return TrafficLight.UNKNOWN
 
-        cv_img = self.bridge.imgmsg_to_cv2(self.camera_image, self.color_mode)
+        cv_img = self.bridge.imgmsg_to_cv2(self.cam_img, self.color_mode)
         #if cv_img is not None:
             #print("cv_img generated")
             #cv2.imshow('cv_img', cv_img)
@@ -268,7 +268,7 @@ class TLDetector(object):
         if tl_img is not None:
             #Get classification
             state = self.light_classifier.get_classification(tl_img)
-            state = state if (state != self.invlaid_class_number) else TrafficLight.UNKNOWN
+            state = state if (state != self.invalid_class_number) else TrafficLight.UNKNOWN
             rospy.loginfo("[tl_detector.py - get_light_state - line269] Nearest TL-state is: %s", labels[state][1])
             return state
         else:
@@ -293,7 +293,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
         if(self.pose):
-            car_position = self.get_closest_waypoint(self.pose.pose)
+            car_position = self.get_nearest_wpt(self.pose.pose)
 
         #TODO find the closest visible traffic light (if one exists)
 
@@ -305,13 +305,13 @@ class TLDetector(object):
         '''
 
         ###Added
-        if self.pose_stamped is None or len(self.stoplines_wp) == 0:
-            #print("self.pose_stamped= ", self.pose_stamped)
+        if self.pose_curr is None or len(self.stoplines_wp) == 0:
+            #print("self.pose_curr= ", self.pose_curr)
             #print("len(self.stoplines_wp", len(self.stoplines_wp))
             rospy.loginfo("[tl_detector.py - process_traffic_lights - line302] No TL detection.")
             return -1, TrafficLight.UNKNOWN
 
-        light = self.get_closest_visible_traffic_light(self.pose_stamped.pose)#Find the nearest visible TL.
+        light = self.get_nearest_visible_tl(self.pose_curr.pose)#Find the nearest visible TL.
 
         # Find the closest traffic light if exists
         if light is None:
@@ -360,10 +360,10 @@ class TLDetector(object):
         zero_row_idx = np.argwhere(row_projection <= self.projection_threshold)
         top_part = zero_row_idx[zero_row_idx < row_idx]
         top = np.max(top_part) if top_part.size > 0 else 0
-        bottom_part = zero_row_idx[zero_row_idx > row_idx]
-        bottom = np.min(bottom_part) if bottom_part.size > 0 else self.resize_height
+        bot_part = zero_row_idx[zero_row_idx > row_idx]
+        bot = np.min(bot_part) if bot_part.size > 0 else self.resize_height
 
-        roi = pred_img_mask[top:bottom, :]
+        roi = pred_img_mask[top:bot, :]
         col_projection = np.sum(roi, axis=0)
 
         if np.max(col_projection) < self.projection_min:
@@ -373,7 +373,7 @@ class TLDetector(object):
 
         non_zero_col_idx = np.argwhere(col_projection > self.projection_min)
 
-        idx_of_col_idx = np.argmin(np.abs(non_zero_col_idx - self.middle_col))
+        idx_of_col_idx = np.argmin(np.abs(non_zero_col_idx - self.mid_col))
         col_idx = non_zero_col_idx[idx_of_col_idx][0]
 
         zero_col_idx = np.argwhere(col_projection == 0)
@@ -381,7 +381,7 @@ class TLDetector(object):
         left = np.max(left_side) if left_side.size > 0 else 0
         right_side = zero_col_idx[zero_col_idx > col_idx]
         right = np.min(right_side) if right_side.size > 0 else self.resize_width
-        return img[int(top*self.resize_height_ratio):int(bottom*self.resize_height_ratio),
+        return img[int(top*self.resize_height_ratio):int(bot*self.resize_height_ratio),
                      int(left*self.resize_width_ratio):int(right*self.resize_width_ratio)]
 
     
@@ -416,22 +416,22 @@ class TLDetector(object):
         return distance
 
 
-    def transform_to_car_frame(self, pose_stamped):
+    def trans_fromcar_tomap(self, pose_curr):# Transform the car position to the map coordinate
         try:
             self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(0.02))
-            transformed_pose_stamped = self.tf_listener.transformPose("base_link", pose_stamped)
+            transformed_pose_curr = self.tf_listener.transformPose("base_link", pose_curr)
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             try:
-                self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(0.02))
-                transformed_pose_stamped = self.tf_listener.transformPose("base_link", pose_stamped)
+                self.tf_listener.waitForTransform("base_link", "world", rospy.Time(0), rospy.Duration(1.0))
+                transformed_pose_curr = self.tf_listener.tranformPose("base_link", pose_curr)
             except (tf.Exception, tf.LookupException, tf.ConnectivityException):
-                transformed_pose_stamped = None
+                transformed_pose_curr = None
                 rospy.logwarn("Failed to transform pose")
 
-        return transformed_pose_stamped
+        return transformed_pose_curr
 
 
-    def get_closest_stopline_pose(self, pose):
+    def get_nearest_stopline(self, pose):
         stop_line_positions = self.config['stop_line_positions']
         dist_min = sys.maxsize
         stop_line_min = None
@@ -451,16 +451,16 @@ class TLDetector(object):
         return stop_line_min
 
 
-    def calculate_traffic_light_waypoints(self):
-        if self.waypoints_stamped is not None and self.lights is not None and len(self.lights_wp) == 0:
+    def calc_tl_wpts(self):
+        if self.wpts_base is not None and self.lights is not None and len(self.lights_wp) == 0:
             for i in range(len(self.lights)):
-                stopline = self.get_closest_stopline_pose(self.lights[i].pose.pose)
-                self.stoplines_wp.append(self.get_closest_waypoint(stopline))
-                self.lights_wp.append(self.get_closest_waypoint(self.lights[i].pose.pose))
+                stopline = self.get_nearest_stopline(self.lights[i].pose.pose)
+                self.stoplines_wp.append(self.get_nearest_wpt(stopline))
+                self.lights_wp.append(self.get_nearest_wpt(self.lights[i].pose.pose))
 
 
-    def get_closest_visible_traffic_light(self, pose):
-        if self.waypoints_stamped is None or self.lights is None or len(self.lights_wp) == 0:
+    def get_nearest_visible_tl(self, pose):
+        if self.wpts_base is None or self.lights is None or len(self.lights_wp) == 0:
             return None
 
         num_lights = len(self.lights_wp)
@@ -469,21 +469,21 @@ class TLDetector(object):
         light_min = None
 
         for light in range(num_lights):
-            dist = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light]].pose.pose)
+            dist = self.dist_euclead(pose, self.wpts_base.waypoints[self.lights_wp[light]].pose.pose)
 
             if dist < dist_min:
                 dist_min = dist
                 light_min = light
 
-        transformed_waypoint = self.transform_to_car_frame(self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose)
+        transformed_wpt = self.trans_fromcar_tomap(self.wpts_base.waypoints[self.lights_wp[light_min]].pose)
 
-        if transformed_waypoint is not None and transformed_waypoint.pose.position.x <= 0.0:
+        if transformed_wpt is not None and transformed_wpt.pose.position.x <= 0.0:
             light_min += 1
 
         if light_min >= num_lights:
             light_min -= num_lights
 
-        dist_euclead = self.dist_euclead(pose, self.waypoints_stamped.waypoints[self.lights_wp[light_min]].pose.pose)
+        dist_euclead = self.dist_euclead(pose, self.wpts_base.waypoints[self.lights_wp[light_min]].pose.pose)
 
         if dist_euclead > (VISIBLE_DISTANCE ** 2):
             return None

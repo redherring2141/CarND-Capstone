@@ -44,9 +44,9 @@ class PID(object):
         derivative = (error - self.error) / delta_t
 
         # Calculate PID control
-        #control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
-        control = self.kp * error + self.ki * integral + self.kd * derivative
-        control = max(self.min, min(self.max, control))
+        control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
+        #control = self.kp * error + self.ki * integral + self.kd * derivative
+        #control = max(self.min, min(self.max, control))
         #rospy.logwarn("[pid.py] control = %f", control)
 
         self.t = sample_time
