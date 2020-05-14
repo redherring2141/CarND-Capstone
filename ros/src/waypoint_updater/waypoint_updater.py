@@ -35,7 +35,7 @@ DIST_MIN = 1
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
-        #rospy.logwarn("debugging: wapoint_updater.py - initialization - line42")
+        #rospy.logwarn("debugging: wapoint_updater.py - initialization - line38")
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.wpts_cb)
 
@@ -67,9 +67,9 @@ class WaypointUpdater(object):
         #rospy.logwarn("waypoint_updater:pose_cb:self.pose_curr %s", self.pose_curr)
 
         if ((self.wpts_base == None) or (self.wpt_redlight == None) or (self.speed_curr == None)):
-            #rospy.logwarn("debugging: wapoint_updater.py - pose_cb - line73")
+            #rospy.logwarn("debugging: wapoint_updater.py - pose_cb - line70")
             return # Do nothing unless all msgs received
-        #rospy.logwarn("[debugging: wapoint_updater.py - pose_cb - line75]")
+        #rospy.logwarn("[debugging: wapoint_updater.py - pose_cb - line72]")
         # Find the nearest waypoint to the current position
         next_wpt = self.get_nearest_wpt(self.pose_curr.pose)
 
@@ -100,7 +100,7 @@ class WaypointUpdater(object):
         lane.header.frame_id = self.wpts_base.header.frame_id
         lane.header.stamp = rospy.Time(0)
 
-        #rospy.loginfo("[debugging wapoint_updater.py - pose_cb - line105: final_waypoints published")
+        #rospy.loginfo("[debugging wapoint_updater.py - pose_cb - line103: final_waypoints published")
         self.final_wpts_pub.publish(lane)
         
         #self.wpts_base = msg

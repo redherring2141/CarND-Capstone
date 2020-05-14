@@ -12,8 +12,6 @@ class PID(object):
         self.min = mn
         self.max = mx
 
-        #self.int_val = self.last_error = 0.
-
         # Approximation - added
         self.max_abs_u = (abs(self.kp) + abs(self.ki) + abs(self.kd)) * abs(max_input)
 
@@ -45,8 +43,6 @@ class PID(object):
 
         # Calculate PID control
         control = max(self.min, min(self.max, (self.kp * error + self.ki * integral + self.kd * derivative)))
-        #control = self.kp * error + self.ki * integral + self.kd * derivative
-        #control = max(self.min, min(self.max, control))
         #rospy.logwarn("[pid.py] control = %f", control)
 
         self.t = sample_time
@@ -54,21 +50,3 @@ class PID(object):
         self.integral = integral        
 
         return control
-
-
-        '''
-        integral = self.int_val + error * sample_time
-        derivative = (error - self.last_error) / sample_time
-
-        val = self.kp * error + self.ki * integral + self.kd * derivative
-
-        if val > self.max:
-            val = self.max
-        elif val < self.min:
-            val = self.min
-        else:
-            self.int_val = integral
-        self.last_error = error
-
-        return val
-        '''
